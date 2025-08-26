@@ -4,7 +4,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import dataBanner from './assets/data.jpg';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-const BASE_URL = 'http://localhost:5001';
+const BASE_URL = ' https://notification-finish-sunglasses-best.trycloudflare.com  ';
 
 function Dashboard({ userEmail }) {
   const [files, setFiles] = useState([]);

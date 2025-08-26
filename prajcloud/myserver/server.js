@@ -27,8 +27,14 @@ if (!process.env.MONGO_URI) {
 }
 
 app.use(express.static('public'));
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: [
+    "http://localhost:3000",
+    "https://homepodsservers.vercel.app"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));app.use(express.json());
 app.use('/uploads', express.static(STORAGE_FOLDER));
 
 mongoose.connect(process.env.MONGO_URI)
