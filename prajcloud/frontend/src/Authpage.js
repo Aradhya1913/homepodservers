@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import bgImage from './assets/1.png'; // ✅ correct import
 
-const BASE_URL = ' https://notification-finish-sunglasses-best.trycloudflare.com  ';
+const BASE_URL = 'https://existing-rabbit-martial-crossing.trycloudflare.com';
 
 function AuthPage({ onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
