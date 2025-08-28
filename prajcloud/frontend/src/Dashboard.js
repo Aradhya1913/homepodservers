@@ -4,7 +4,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import dataBanner from './assets/data.jpg';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-const BASE_URL = 'https://existing-rabbit-martial-crossing.trycloudflare.com';
+const BASE_URL = 'https://additionally-empty-middle-outside.trycloudflare.com';
 
 function Dashboard({ userEmail }) {
   const [files, setFiles] = useState([]);
