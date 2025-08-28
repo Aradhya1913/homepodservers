@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import bgImage from './assets/1.png'; // ✅ correct import
 
-const BASE_URL = 'http://localhost:5001';
+const BASE_URL = "http://localhost:5001";
 
 function AuthPage({ onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
