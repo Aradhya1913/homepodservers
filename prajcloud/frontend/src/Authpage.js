@@ -1,6 +1,22 @@
 import React, { useState } from 'react';
 import bgImage from './assets/1.png'; // ✅ correct import
 
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAw37BB51QEJtTEF83t2zh2E2EZ94zDMsU",
+  authDomain: "login-aa9e1.firebaseapp.com",
+  projectId: "login-aa9e1",
+  storageBucket: "login-aa9e1.firebasestorage.app",
+  messagingSenderId: "967700815757",
+  appId: "1:967700815757:web:ae5c71718f296de9e727c4"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
 const BASE_URL = "http://localhost:5001";
 
 function AuthPage({ onLogin }) {
@@ -82,6 +98,30 @@ function AuthPage({ onLogin }) {
             className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded hover:opacity-90 shadow-md font-semibold"
           >
             {isLogin ? 'Login' : 'Sign Up'}
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const result = await signInWithPopup(auth, provider);
+                const user = result.user;
+                localStorage.setItem('userEmail', user.email);
+                localStorage.setItem('userName', user.displayName);
+                localStorage.setItem('authToken', await user.getIdToken());
+                onLogin(user.email);
+              } catch (error) {
+                console.error("Firebase Login Error:", error);
+                alert("Google Sign-in failed. Please try again.");
+              }
+            }}
+            className="w-full py-3 flex items-center justify-center gap-3 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-all mt-3 font-medium"
+          >
+            <img
+              src='https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg'
+              alt='Google logo'
+              className='w-5 h-5'
+            />
+            Sign in with Google
           </button>
         </form>
 

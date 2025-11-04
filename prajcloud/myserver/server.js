@@ -40,7 +40,7 @@ app.use('/uploads', express.static(STORAGE_FOLDER));
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ Connected to MongoDB Atlas'))
   .catch((err) => console.error('❌ MongoDB connection error:', err));
-
+if (!fs.existsSync(STORAGE_FOLDER)) fs.mkdirSync(STORAGE_FOLDER);
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const folder = req.body.folderPath || '';
@@ -72,7 +72,42 @@ app.post('/rename', verifyToken, (req, res) => {
   if (!fs.existsSync(fullOldPath)) return res.status(404).send('❌ File not found');
   try {
     fs.renameSync(fullOldPath, fullNewPath);
-    res.send('✅ File renamed successfully');
+app.use('/uploads', express.static(STORAGE_FOLDER));
+
+const passport = require('passport');
+const session = require('express-session');
+const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
+
+app.use(session({ secret: 'yoursecret', resave: false, saveUninitialized: true }));
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: process.env.GOOGLE_CALLBACK_URL,
+    },
+    (accessToken, refreshToken, profile, done) => {
+      console.log('✅ Google Profile:', profile.displayName);
+      return done(null, profile);
+    }
+  )
+);
+
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((user, done) => done(null, user));
+
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+app.get(
+  '/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: '/' }),
+  (req, res) => {
+    res.redirect('http://localhost:3000/dashboard');
+  }
+);
   } catch (err) {
     console.error('Rename error:', err);
     res.status(500).send('❌ Rename failed');

@@ -300,6 +300,15 @@ export default function Dashboard({ userEmail }) {
         <div className="flex items-center gap-3">
           <div className="text-sm text-gray-600">{userEmail}</div>
           <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center">U</div>
+          <button
+            onClick={() => {
+              localStorage.removeItem('authToken');
+              window.location.href = '/app';
+            }}
+            className="ml-2 px-3 py-1 bg-red-500 text-white text-sm rounded-md hover:bg-red-600 transition-all duration-200"
+          >
+            Logout
+          </button>
         </div>
       </header>
 
@@ -385,7 +394,6 @@ export default function Dashboard({ userEmail }) {
             <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden mb-2">
               <div style={{ width: `${Math.min(100, (totalSize/ (15*1024*1024)) * 100)}%` }} className="h-2 bg-blue-400" />
             </div>
-            <div className="text-xs"> {(totalSize / (1024)).toFixed(2)} MB used</div>
           </div>
         </aside>
 
