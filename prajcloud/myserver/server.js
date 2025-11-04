@@ -8,25 +8,40 @@ const path = require('path');
 const fs = require('fs');
 const mime = require('mime-types');
 const jwt = require('jsonwebtoken');
+const admin = require('firebase-admin');
 
 const User = require('./models/User');
 const File = require('./models/File');
 
 const app = express();
 
+// 🔧 Configuration
 const PORT = process.env.PORT || 5001;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 const STORAGE_FOLDER = process.env.STORAGE_FOLDER || path.join(__dirname, 'uploads');
 console.log(`📂 Using storage folder: ${STORAGE_FOLDER}`);
 
-if (!fs.existsSync(STORAGE_FOLDER)) fs.mkdirSync(STORAGE_FOLDER);
+// 🧩 Initialize Firebase Admin (for Google Sign-in verification)
+const serviceAccount = require('./serviceAccountKey.json'); // must be present in same directory
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
+// 📦 Ensure storage folder exists
+if (!fs.existsSync(STORAGE_FOLDER)) fs.mkdirSync(STORAGE_FOLDER, { recursive: true });
+
+// 🧠 Connect MongoDB
 if (!process.env.MONGO_URI) {
   console.error('❌ MONGO_URI is not defined in .env');
   process.exit(1);
 }
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('✅ Connected to MongoDB Atlas'))
+  .catch((err) => console.error('❌ MongoDB connection error:', err));
 
+// ⚙️ Middleware setup
 app.use(express.static('public'));
+app.use(express.json());
 app.use(cors({
   origin: [
     "http://localhost:3000",
@@ -34,13 +49,10 @@ app.use(cors({
   ],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
-}));app.use(express.json());
+}));
 app.use('/uploads', express.static(STORAGE_FOLDER));
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ Connected to MongoDB Atlas'))
-  .catch((err) => console.error('❌ MongoDB connection error:', err));
-if (!fs.existsSync(STORAGE_FOLDER)) fs.mkdirSync(STORAGE_FOLDER);
+// 🗂️ Multer storage configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const folder = req.body.folderPath || '';
@@ -52,72 +64,40 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-function verifyToken(req, res, next) {
+// 🔐 Token Verification Middleware (supports Firebase & Local JWT)
+async function verifyToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   if (!authHeader) return res.status(401).send('❌ No token provided');
   const token = authHeader.split(' ')[1];
+  if (!token) return res.status(401).send('❌ No token provided');
 
+  // Try verifying Firebase token first
+  try {
+    const decodedFirebase = await admin.auth().verifyIdToken(token);
+    req.userEmail = decodedFirebase.email;
+    console.log("✅ Firebase user verified:", decodedFirebase.email);
+    return next();
+  } catch (err) {
+    console.log("⚠️ Firebase token verification failed:", err.message);
+  }
+
+  // Fallback to local JWT
   jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (err) return res.status(403).send('❌ Invalid token');
+    if (err) {
+      console.error("❌ Token verification failed:", err.message);
+      return res.status(403).send('❌ Invalid token');
+    }
     req.userEmail = decoded.email;
     next();
   });
 }
 
-app.post('/rename', verifyToken, (req, res) => {
-  const { oldPath, newPath } = req.body;
-  const fullOldPath = path.join(STORAGE_FOLDER, oldPath);
-  const fullNewPath = path.join(STORAGE_FOLDER, newPath);
-
-  if (!fs.existsSync(fullOldPath)) return res.status(404).send('❌ File not found');
-  try {
-    fs.renameSync(fullOldPath, fullNewPath);
-app.use('/uploads', express.static(STORAGE_FOLDER));
-
-const passport = require('passport');
-const session = require('express-session');
-const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
-
-app.use(session({ secret: 'yoursecret', resave: false, saveUninitialized: true }));
-app.use(passport.initialize());
-app.use(passport.session());
-
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL,
-    },
-    (accessToken, refreshToken, profile, done) => {
-      console.log('✅ Google Profile:', profile.displayName);
-      return done(null, profile);
-    }
-  )
-);
-
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
-
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
-app.get(
-  '/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: '/' }),
-  (req, res) => {
-    res.redirect('http://localhost:3000/dashboard');
-  }
-);
-  } catch (err) {
-    console.error('Rename error:', err);
-    res.status(500).send('❌ Rename failed');
-  }
-});
-
+// 🚀 Default route
 app.get('/', (req, res) => {
   res.send('🚀 Welcome to Prajwal Cloud Server!');
 });
 
+// 👤 Signup
 app.post('/signup', async (req, res) => {
   const { username, email, password } = req.body;
   try {
@@ -133,6 +113,7 @@ app.post('/signup', async (req, res) => {
   }
 });
 
+// 🔑 Login (local Mongo)
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -148,6 +129,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
+// 📤 Upload file
 app.post('/upload', verifyToken, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).send('❌ No file uploaded');
   try {
@@ -165,6 +147,7 @@ app.post('/upload', verifyToken, upload.single('file'), async (req, res) => {
   }
 });
 
+// 📁 List files/folders
 app.get('/files', verifyToken, async (req, res) => {
   try {
     const folder = req.query.folder || '';
@@ -173,10 +156,7 @@ app.get('/files', verifyToken, async (req, res) => {
 
     const entries = fs.readdirSync(targetDir, { withFileTypes: true });
     const files = entries
-      .filter(entry => {
-        const hidden = entry.name.startsWith('.') || entry.name.toLowerCase() === 'thumbs.db';
-        return !hidden && entry.name.toLowerCase() !== '.ds_store';
-      })
+      .filter(entry => !entry.name.startsWith('.') && entry.name.toLowerCase() !== 'thumbs.db')
       .map(entry => {
         const fullPath = path.join(targetDir, entry.name);
         const stat = fs.statSync(fullPath);
@@ -195,6 +175,7 @@ app.get('/files', verifyToken, async (req, res) => {
   }
 });
 
+// 📥 Download file
 app.get('/download/*', verifyToken, (req, res) => {
   const relativePath = req.params[0];
   const filePath = path.join(STORAGE_FOLDER, relativePath);
@@ -209,6 +190,8 @@ app.get('/download/*', verifyToken, (req, res) => {
     res.status(500).send('❌ Download failed');
   }
 });
+
+// ✏️ Rename file/folder
 app.post('/rename', verifyToken, async (req, res) => {
   const { oldPath, newPath } = req.body;
   const fromPath = path.join(STORAGE_FOLDER, oldPath);
@@ -224,6 +207,8 @@ app.post('/rename', verifyToken, async (req, res) => {
     res.status(500).send('❌ Rename failed');
   }
 });
+
+// 🗑️ Delete file
 app.delete('/delete/*', verifyToken, async (req, res) => {
   const relativePath = req.params[0];
   const filePath = path.join(STORAGE_FOLDER, relativePath);
@@ -238,6 +223,7 @@ app.delete('/delete/*', verifyToken, async (req, res) => {
   }
 });
 
+// 🚀 Start server
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
 });
